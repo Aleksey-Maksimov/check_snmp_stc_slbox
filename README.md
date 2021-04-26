@@ -77,8 +77,8 @@ Option   GNU long option        Meaning
                                 The option is not enabled by default.
 
  -S     --check-smdranalyzer    Check 'SmdrAnalyzer' service state.
-                                The SmdrAnalyzer service is used if the device has an STC-H597 mezzanine 
-                                (to work with the digital stream E1).
+                                The SmdrAnalyzer service is used if the device has 
+                                an STC-H597 mezzanine (to work with the digital stream E1).
                                 In this case, the service processes additional data on phone 
                                 calls received from the PBX in the SMDR/CDR format.
                                 The option is used only with 'services' mode. 
