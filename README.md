@@ -98,4 +98,4 @@ $ ../check_snmp_stc_slbox.sh --mode=hdd --warning='95' --critical='98' \
 ```
 Icinga Director integration manual (in Russian):
 
-[Исследование возможностей мониторинга регистраторов речевой информации STC Smart Logger BOX и плагин check_snmp_stc_slbox для базового мониторинга в Icinga](https://blog.it-kb.ru/2021/04/26/)
+[Исследование возможностей мониторинга регистраторов речевой информации STC Smart Logger BOX и плагин check_snmp_stc_slbox для базового мониторинга в Icinga](https://blog.it-kb.ru/2021/04/26/stc-smart-logger-box-voice-recorders-and-check_snmp_stc_slbox-plugin-for-basic-slbox-monitoring-in-icinga/)
