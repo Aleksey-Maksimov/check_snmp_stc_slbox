@@ -10,13 +10,15 @@
 # 2021.01.28 - Initial version
 # 2021.03.19 - Added error checking for snmpget utility:
 #              No Such Object available on this agent at this OID, snmpget: Unknown host ..., Timeout: No Response from ... 
+# 2021.05.17 - Change exit code for SNMP errors from WARNINIG to UNKNOWN
+# 2021.10.22 - Added HDD Zero Temperature detection
 #
 # Put here: /usr/lib/nagios/plugins/check_snmp_stc_slbox.sh
 # Usage example:
 # ./check_snmp_stc_slbox.sh -H slbox-01.holding.com -P 2c -C public -m hdd
 #
 PLUGIN_NAME="Icinga Plugin Check Command to get STC Smart Logger Box device current state (from SNMP v1/2c data)"
-PLUGIN_VERSION="2021.01.28"
+PLUGIN_VERSION="2021.10.22"
 PRINTINFO=`printf "\n%s, version %s\n \n" "$PLUGIN_NAME" "$PLUGIN_VERSION"`
 
 
@@ -160,13 +162,13 @@ IsBadResponse () {
 }
 
 
-# Get SLBox state
+# Get SLBox state - mode:uptime
 #
 if [ "$MODE" = "uptime" ]; then
 
 	vUptime=$( $vSNMPGet "1.3.6.1.4.1.45373.2.4" 2>&1 )
 
-	if IsBadResponse "$vUptime"; then echo "SNMP Error: $vUptime"; exit $codeWARNING; fi
+	if IsBadResponse "$vUptime"; then echo "SNMP Error: $vUptime"; exit $codeUNKNOWN; fi
 
 	if [ ! -z "$vUptime" ]; then
 		vHRUptime=$( eval "echo $(date -ud "@$vUptime" +'$((%s/3600/24)) days %H hours %M minutes %S seconds')" )
@@ -178,7 +180,7 @@ elif [ "$MODE" = "sensors" ]; then
 
         vHDDTemp=$( $vSNMPGet "1.3.6.1.4.1.45373.2.3" 2>&1 )
 
-        if IsBadResponse "$vHDDTemp"; then echo "SNMP Error: $vHDDTemp"; exit $codeWARNING; fi
+        if IsBadResponse "$vHDDTemp"; then echo "SNMP Error: $vHDDTemp"; exit $codeUNKNOWN; fi
 
 	# Warning threshold
 	if [ ! -z "$vWARN" ]; then
@@ -196,6 +198,10 @@ elif [ "$MODE" = "sensors" ]; then
 
         if [ ! -z "$vHDDTemp" ]; then
 	 if [ "$vHDDTemp" -lt "$vHDDTempWarn" ]; then
+	        if [ "$vHDDTemp" -eq "0" ]; then
+        	     echo -e "Zero HDD Temperature ($vHDDTemp C). The device may not be working properly... | 'hddtemperature'=$vHDDTemp;$vHDDTempWarn;$vHDDTempCrit;;"
+             	exit $codeWARNING
+        	fi
                 echo -e "OK: HDD Temperature Sensor - $vHDDTemp C | 'hddtemperature'=$vHDDTemp;$vHDDTempWarn;$vHDDTempCrit;;"
                 exit $codeOK
 	 elif [ "$vHDDTemp" -ge "$vHDDTempWarn" ] && [ "$vHDDTemp" -lt "$vHDDTempCrit" ]; then
@@ -205,13 +211,13 @@ elif [ "$MODE" = "sensors" ]; then
                 echo -e "Critical HDD Temperature! - $vHDDTemp C | 'hddtemperature'=$vHDDTemp;$vHDDTempWarn;$vHDDTempCrit;;"
                 exit $codeCRITICAL
 	 fi
-        fi
+	fi
 
 elif [ "$MODE" = "hdd" ]; then
 
         vHDDUsage=$( $vSNMPGet "1.3.6.1.4.1.45373.2.5" 2>&1 | tr -d '"')
 
-	if IsBadResponse "$vHDDUsage"; then echo "SNMP Error: $vHDDUsage"; exit $codeWARNING; fi
+	if IsBadResponse "$vHDDUsage"; then echo "SNMP Error: $vHDDUsage"; exit $codeUNKNOWN; fi
 
         # Warning threshold
         if [ ! -z "$vWARN" ]; then
@@ -255,7 +261,7 @@ elif [ "$MODE" = "services" ]; then
 
 	if [ "$vCHECKRecorder" -eq "1" ]; then
 	   vSVCRecorder=$( $vSNMPGet "1.3.6.1.4.1.45373.2.7.1" 2>&1 )
-	   if IsBadResponse "$vSVCRecorder"; then echo "SNMP Error: $vSVCRecorder"; exit $codeWARNING; fi
+	   if IsBadResponse "$vSVCRecorder"; then echo "SNMP Error: $vSVCRecorder"; exit $codeUNKNOWN; fi
            if [ "$vSVCRecorder" -eq "1" ]; then
 	      vSVCSumm=$vSVCSumm$( echo -e " \n + Recorder service running" );
 	   elif [ "$vSVCRecorder" -eq "0" ]; then
@@ -266,7 +272,7 @@ elif [ "$MODE" = "services" ]; then
 
         if [ "$vCHECKCleaner" -eq "1" ]; then
            vSVCCleaner=$( $vSNMPGet "1.3.6.1.4.1.45373.2.7.2" 2>&1 )
-	   if IsBadResponse "$vSVCCleaner"; then echo "SNMP Error: $vSVCCleaner"; exit $codeWARNING; fi
+	   if IsBadResponse "$vSVCCleaner"; then echo "SNMP Error: $vSVCCleaner"; exit $codeUNKNOWN; fi
            if [ "$vSVCCleaner" -eq "1" ]; then
               vSVCSumm=$vSVCSumm$( echo -e " \n + Cleaner service running" );
            elif [ "$vSVCCleaner" -eq "0" ]; then
@@ -277,7 +283,7 @@ elif [ "$MODE" = "services" ]; then
 
         if [ "$vCHECKXCtl" -eq "1" ]; then
            vSVCXCtl=$( $vSNMPGet "1.3.6.1.4.1.45373.2.7.3" 2>&1 )
-	   if IsBadResponse "$vSVCXCtl"; then echo "SNMP Error: $vSVCXCtl"; exit $codeWARNING; fi
+	   if IsBadResponse "$vSVCXCtl"; then echo "SNMP Error: $vSVCXCtl"; exit $codeUNKNOWN; fi
            if [ "$vSVCXCtl" -eq "1" ]; then
               vSVCSumm=$vSVCSumm$( echo -e " \n + XCtl service running" );
            elif [ "$vSVCXCtl" -eq "0" ]; then
@@ -288,7 +294,7 @@ elif [ "$MODE" = "services" ]; then
 
         if [ "$vCHECKFTPServer" -eq "1" ]; then
            vSVCFTPServer=$( $vSNMPGet "1.3.6.1.4.1.45373.2.7.4" 2>&1 )
-	   if IsBadResponse "$vSVCFTPServer"; then echo "SNMP Error: $vSVCFTPServer"; exit $codeWARNING; fi
+	   if IsBadResponse "$vSVCFTPServer"; then echo "SNMP Error: $vSVCFTPServer"; exit $codeUNKNOWN; fi
            if [ "$vSVCFTPServer" -eq "1" ]; then
               vSVCSumm=$vSVCSumm$( echo -e " \n + FTP Server service running" );
            elif [ "$vSVCFTPServer" -eq "0" ]; then
@@ -299,7 +305,7 @@ elif [ "$MODE" = "services" ]; then
 
         if [ "$vCHECKSMDRAnalyzer" -eq "1" ]; then
            vSVCSmdrAnalyzer=$( $vSNMPGet "1.3.6.1.4.1.45373.2.7.5" 2>&1 )
-	   if IsBadResponse "$vSVCSmdrAnalyzer"; then echo "SNMP Error: $vSVCSmdrAnalyzer"; exit $codeWARNING; fi
+	   if IsBadResponse "$vSVCSmdrAnalyzer"; then echo "SNMP Error: $vSVCSmdrAnalyzer"; exit $codeUNKNOWN; fi
            if [ "$vSVCSmdrAnalyzer" -eq "1" ]; then
               vSVCSumm=$vSVCSumm$( echo -e " \n + SMDR Analyzer service running" );
            elif [ "$vSVCSmdrAnalyzer" -eq "0" ]; then
